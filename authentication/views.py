@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from rest_framework import generics, status, views
-from .serializers import RegisterSerializer, EmailVerificationSerializer, LoginSerializer, ResetPasswordEmailRequestSerializer, SetNewPasswordSerializer
+from .serializers import RegisterSerializer, EmailVerificationSerializer, LoginSerializer, ResetPasswordEmailRequestSerializer, SetNewPasswordSerializer, LogoutSerializer
 from rest_framework.response import Response
 from .models import User
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -15,6 +15,7 @@ from .renderers import UserRenderer
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.utils.encoding import smart_str, force_str, force_bytes, DjangoUnicodeDecodeError
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from rest_framework import permissions
 
 
 # Create your views here.
@@ -145,3 +146,15 @@ class SetNewPasswordAPIView(generics.GenericAPIView):
             'success': True,
             'message': 'Password reset successed',
         }, status=status.HTTP_200_OK)
+
+
+class LogoutApiView(generics.GenericAPIView):
+    serializer_class = LogoutSerializer
+    permission_classes = (permissions.IsAuthenticated, )
+
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response({'success': 'User logged out successfully'}, status=status.HTTP_204_NO_CONTENT)

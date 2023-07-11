@@ -8,6 +8,7 @@ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from .utils import Util
 from django.contrib.sites.shortcuts import get_current_site
 from django.urls import reverse
+from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -41,12 +42,19 @@ class EmailVerificationSerializer(serializers.ModelSerializer):
         model = User
         fields = ['token', ]
 
-
+ 
 class LoginSerializer(serializers.ModelSerializer):
     username = serializers.CharField()
     email = serializers.EmailField(read_only=True)
     password = serializers.CharField(write_only=True)
-    tokens = serializers.CharField(read_only=True)
+    tokens = serializers.SerializerMethodField()
+
+    def get_tokens(self, obj):
+        user = User.objects.get(email=obj['email'])
+        return ({
+            'access': user.tokens()['access'],
+            'refresh': user.tokens()['refresh']
+        })
 
     class Meta:
         model = User
@@ -83,31 +91,6 @@ class ResetPasswordEmailRequestSerializer(serializers.ModelSerializer):
         model = User
         fields = ['email', ]
 
-    # def validate(self, data):
-    #     attrs = data['data']
-    #     request = data['request']
-
-    #     print("data: ", data)
-    #     print("attrs: ", attrs)
-    #     print("request:", request)
-
-    #     email = attrs.get('email', '')
-    #     user = User.objects.get(email=email)
-    #     if user:
-    #         uidb64 = urlsafe_base64_encode(user.id)
-    #         token = PasswordResetTokenGenerator().make_token(user)
-
-    #         current_site = get_current_site(request=request).domain
-    #         relativeLink = reverse('password-reset-confirm', kwargs={'uidb64': uidb64, 'token': token})
-    #         absurl = 'http://' + current_site + relativeLink
-    #         email_body = 'Hi ' + user.username + ', you can use the link below to reset your password \n' + absurl
-    #         data = {'email_body': email_body, 'to_email': user.email,
-    #                 'email_subject': 'Reset your password'}
-
-    #         Util.send_email(data)
-    
-    #     return super().validate(attrs)
-
 
 class SetNewPasswordSerializer(serializers.Serializer):
     password = serializers.CharField(min_length=6, max_length=68, write_only=True)
@@ -136,4 +119,26 @@ class SetNewPasswordSerializer(serializers.Serializer):
             
         except Exception as e:
             raise AuthenticationFailed('The reset link is invalid', 401)
+        
+
+class LogoutSerializer(serializers.ModelSerializer):
+    refresh = serializers.CharField()
+
+    default_error_messages = {
+        'bad_token': ('Token is expired or invalid'),
+    }
+
+    class Meta:
+        model = User
+        fields = ['refresh', ]
+
+    def validate(self, attrs):
+        self.token = attrs['refresh']
+        return attrs
+    
+    def save(self, **kwargs):
+        try:
+            RefreshToken(self.token).blacklist()
+        except TokenError:
+            self.fail('bad_token')
         

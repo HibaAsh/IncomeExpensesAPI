@@ -42,14 +42,15 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
+    'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
+    'drf_yasg',
+    'corsheaders',
     'authentication',
     'expenses',
     'income',
     'userstats',
-    'rest_framework',
-    'rest_framework_simplejwt',
-    'drf_yasg',
-    'corsheaders',
 ]
 
 SWAGGER_SETTINGS = {
